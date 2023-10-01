@@ -214,7 +214,7 @@ boxc
 lambda <- boxc$x[which.max(boxc$y)]
 lambda
 
-# Confidence Interval (CI)
+# Confidence Interval (CI)s
 boxc$x[boxc$y > max(boxc$y) - 1/2 * qchisq(0.95, 1)]
 ```
 
