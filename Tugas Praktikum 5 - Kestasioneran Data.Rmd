@@ -1,0 +1,222 @@
+---
+title: "Tugas Praktikum 5 - Kestasioneran Data"
+author: "Muhammad Luthfi Al Gifari"
+date: "2023-10-01"
+output: html_document
+---
+
+# Library
+```{r}
+library(ggplot2)
+library(tsibble)
+library(tseries)
+library(MASS)
+```
+
+# Impor Data
+```{r}
+Data <- rio::import("https://raw.githubusercontent.com/Mluthfialgifari/Praktikum-MPDW-Sems5/main/microsoft-stock-dataset-Monthly2.csv")
+Data
+```
+
+# Tidy Up Data
+```{r}
+# New Data Frame
+Data1 <- cbind.data.frame(seq(1, 120), Data$Price)
+Data1
+
+# Rename Columns
+colnames(Data1)[1] <- "Periode"
+colnames(Data1)[1]
+colnames(Data1)[2] <- "HargaSaham"
+colnames(Data1)[2]
+Data1
+```
+
+## Data Stationarity ##
+
+# Data Exploratory
+**Identifikasi Peubah**
+```{r}
+Periode <- Data1$Periode
+Periode
+HargaSaham <- Data1$HargaSaham
+HargaSaham
+```
+
+# Data Time Series
+```{r}
+Data.ts <- ts(Data1$HargaSaham)
+Data.ts
+```
+# Average
+```{r}
+mean(Data.ts)
+```
+**Interpretation:**
+Rata-rata harga saham bulanan Microsoft sejumlah $128.8626 atau 128.8626 USD.
+
+# Time Series Plot
+```{r}
+plot_ts <- Data.ts |> as_tsibble() |> 
+  ggplot(aes(x = Periode, y = HargaSaham)) + geom_line() + theme_bw() +
+  xlab("Periode") + ylab("HargaSaham")
+plot_ts
+```
+
+Berdasarkan plot deret waktu yang ditampilkan, dapat dilihat bahwa data tidak stasioner dalam rataan maupun ragam (pola data tren).
+
+# Plot ACF
+```{r}
+acf(Data.ts)
+```
+
+Berdasarkan plot ACF, terlihat bahwa data cenderung tails off yang bermakna bahwa pola data tersebut tidak stasioner.
+
+# Uji ADF
+**Pengujian Hipotesis:**
+$H_0$ : Data tidak stasioner dalam rataan
+$H_1$ : Data stasioner dalam rataan
+
+```{r}
+tseries::adf.test(Data.ts)
+```
+**Interpretasi:**
+Diperoleh *p-value* sebesar 0.4685 \> 0.05, maka Tak Tolak $H_0$. Artinya, belum cukup bukti untuk menyatakan bahwa data stasioner dalam rataan. Dapat dibuktikan juga bahwa pernyataan hasil tersebut sama dan sesuai dengan grafik yang ditunjukkan oleh plot time series dan plot ACF.
+
+# Plot Box-Cox
+```{r}
+# Determine the n (Jumlah Data HargaSaham [Price])
+n <- length(Data.ts)
+n
+
+# Plot Visualization
+index <- seq(1:n) 
+
+boxc <- boxcox(Data.ts~index, lambda = seq(-0.5, 0, by = 0.001))
+
+# Rounded Value (Lambda)
+lambda <- boxc$x[which.max(boxc$y)]
+lambda
+
+# Confidence Interval (CI)
+boxc$x[boxc$y > max(boxc$y) - 1/2 * qchisq(0.95, 1)]
+```
+
+**Interpretasi:**
+Berdasarkan plot box-cox, rounded value (\$\\lambda\$) optimum sebesar -0.295, dan pada selang kepercayaan 95% nilai memiliki batas bawah -0.398 dan batas atas -0.191. Selang tersebut tidak memuat atau mencapai nilai satu, sehingga dapat dikatakan bahwa data harga saham tidak stasioner dalam ragam.
+
+## Data Partition ##
+
+# Part 1
+```{r}
+Data.st1 <- Data.ts[1:40] |> ts()
+Data.st1
+
+mean(Data.st1)
+var(Data.st1)
+```
+
+# Time Series Plot
+```{r}
+Data.st1 |> as_tsibble() |> 
+  ggplot(aes(x = index, y = value)) +
+  geom_line() + theme_bw() +
+  xlab("Periode") + ylab("HargaSaham")
+```
+
+**Interpretasi:**
+Berdasarkan plot deret waktu yang disajikan, dapat dilihat bahwa data tidak stasioner dalam rataan, ditandai dengan data yang tidak menyebar di sekitar nilai tengah. Namun, masih belum dapat dipastikan data tidak stasioner dalam ragam.
+
+# Plot ACF
+```{r}
+acf(Data.st1)
+```
+
+**Interpretasi:**
+Berdasarkan plot ACF, terlihat bahwa data hasil partisi pertama cenderung \*tails off\* yang bermakna bahwa data tidak stasioner dalam rataan.
+
+# Uji ADF
+**Pengujian Hipotesis:**
+$H_0$ : Data tidak stasioner dalam rataan
+$H_1$ : Data stasioner dalam rataan
+
+```{r}
+tseries::adf.test(Data.st1)
+```
+
+**Interpretasi:**
+Diperoleh *p-value* sebesar 0.08544 \> 0.05, maka Tak Tolak $H_0$. Artinya, belum cukup bukti untuk menyatakan bahwa data stasioner dalam rataan. Dapat dibuktikan bahwa pernyataan tersebut sama dan sesuai dengan grafik yang ditunjukkan oleh plot time series dan plot ACF.
+
+# Plot Box-Cox
+```{r}
+index <- seq(1:40)
+boxc <- boxcox(Data.st1~index, lambda = seq(-2, 3.5, by = 0.01))
+boxc
+
+# Rounded Value (Lambda)
+lambda <- boxc$x[which.max(boxc$y)]
+lambda
+
+# Confidence Interval (CI)
+boxc$x[boxc$y > max(boxc$y) - 1/2 * qchisq(0.95, 1)]
+```
+**Interpretasi:**
+Berdasarkan plot box-cox, diperoleh rounded value (\$\\lambda\$) optimum sebesar 0.61 dan pada selang kepercayaan 95% nilai memiliki batas bawah -0.63 dan batas atas 1.89. Selang tersebut memuat dan mencapai nilai satu, sehingga dapat dikatakan bahwa data harga saham (price) stasioner dalam ragam.
+
+# Part 2
+```{r}
+Data.st2 <- Data.ts[1:80] |> ts()
+Data.st2
+
+mean(Data.st2)
+var(Data.st2)
+```
+
+# Time Series Plot
+```{r}
+Data.st2 |> as_tsibble() |> 
+  ggplot(aes(x = index, y = value)) +
+  geom_line() + theme_bw() +
+  xlab("Periode") + ylab("HargaSaham")
+```
+
+**Interpretasi:**
+Berdasarkan plot deret waktu yang disajikan, dapat dilihat bahwa data tidak stasioner dalam rataan dan ragam, ditunjukkan dengan bentuk/pola data yang tidak menyebar di sekitar nilai tengah, serta lebar pita yang cenderung berbeda.
+
+# Plot ACF
+```{r}
+acf(Data.st2)
+```
+
+**Interpretasi:**
+Berdasarkan plot ACF, dapat dilihat bahwa data hasil partisi kedua cenderung \*tails off\* yang bermakna bahwa data tidak stasioner dalam rataan.
+
+# Uji ADF
+**Pengujian Hipotesis:**
+$H_0$ : Data tidak stasioner dalam rataan
+$H_1$ : Data stasioner dalam rataan
+
+```{r}
+adf.test(Data.st2)
+```
+
+**Interpretasi:**
+Diperoleh *p-value* sebesar 0.99 \> 0.05, maka Tak Tolak $H_0$. Artinya, belum cukup bukti untuk menyatakan bahwa data stasioner dalam rataan. Dapat dibuktikan bahwa pernyataan tersebut sama atau sesuai dengan grafik yang ditunjukkan oleh plot time series dan plot ACF.
+
+# Plot Box-Cox
+```{r}
+index <- seq(1:80)
+boxc = boxcox(Data.st2~index, lambda = seq(-1.5, 0.5, by = 0.01))
+boxc
+
+# Rounded Value (Lambda)
+lambda <- boxc$x[which.max(boxc$y)]
+lambda
+
+# Confidence Interval (CI)
+boxc$x[boxc$y > max(boxc$y) - 1/2 * qchisq(0.95, 1)]
+```
+
+**Interpretasi:**
+Berdasarkan plot box-cox, diperoleh rounded value (\$\\lambda\$) optimum sebesar -0.6 dan pada selang kepercayaan 95% nilai memiliki batas bawah -0.77 dan batas atas -0.44. Selang tersebut tidak memuat dan mencapai nilai satu, sehingga dapat dikatakan bahwa data harga saham (price) tidak stasioner dalam ragam.
